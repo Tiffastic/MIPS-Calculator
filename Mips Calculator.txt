@@ -1,0 +1,185 @@
+# desktop calculator
+# accept input strings
+# only positive integers, op1 and op2
+# result may be negative
+# inputs have to be converted into integers
+# no overflows or divide by zeros.
+
+# Programmed by Thuy Nguyen
+# Last updated: September 28, 2015
+
+.data
+
+quit: .asciiz "Input \"e\": quit the program"
+addOps: .asciiz "Input \"+ op1 op2\": add op1 and op2"
+addOp1: .asciiz "Input \"+ op1\": add op1 to the result of the previous operation"
+minusOps: .asciiz "Input \"- op1 op2\": perform op1 - op2"
+minusOp1: .asciiz "Input \"- op1\": subtract op1 from the result of the previous operation"
+mulOp1: .asciiz "Input \"* op1\": multiply op1 to the result of the previous operation"
+divOp1: .asciiz "Input \"/ op1\": divide the result of the previous operation by op1"
+modOp1: .asciiz "Input \"% op1\": the remainder after dividing the result of the previous operation by op1"
+newLine: .asciiz "\n"
+e: .asciiz "e"
+math: .space 120
+
+.text
+
+# prints out the menu for the calculator
+lb $s1, newLine # load newline into $s1
+lb $s2, e # load the quit symbol "e" into $s2
+li $s3, -1
+menu:
+la $a0, quit  # load the quit string into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, newLine # load a new line into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, addOps # load the add op1 op2 into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, newLine # load a new line into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, addOp1 # load add op1 into $a0
+li $v0, 4 # print string
+syscall
+la $a0, newLine # load a new line into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, minusOps # load the minus op1 op2 into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, newLine # load a new line into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, minusOp1 # load the minus op1 into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, newLine # load a new line into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, mulOp1 # load the multiply op1 into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, newLine # load a new line into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, divOp1 # load the divide op1 into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, newLine # load a new line into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, modOp1 # load the mod op1 into $a0
+li $v0, 4 # print the string
+syscall
+la $a0, newLine # load a new line into $a0
+li $v0, 4 # print the string
+syscall
+
+readInput:
+
+la $a0, math  # stores the address of label math (space that we allocated 20 bytes to) into $a0
+li $a1, 30 # allows 5 characters to be read in
+
+li $v0, 8 # reads in the string and stores it at the address of $a0
+syscall
+
+lb $t3, ($a0) # get the first byte from the string and see if it's an opertor
+beq $t3, $s2, end # if first byte is the quit symbol "e" then end program
+
+addi $a0, $a0, 2 # increment to the beginning of the first operand
+
+jal convertIntoInt # convert the string number into decimal number
+move $t1, $t7 # move the converted value stored in $t7 into $t1
+
+
+lb $t4, ($a0) # see if the current byte is a new line, if so, then we pop from stack
+beq $t4, $s1, pop
+
+# if current byte is not a new line, then we have another number to read
+addi $a0, $a0, 1 # increment to the next byte
+jal convertIntoInt # convert the next string number into a decimal number
+move $t2, $t7 # move the converted value in $t7 into $t2
+
+
+jal evaluate # do the operation on op1 in $t1 and op2 in $t2
+subi $sp, $sp, 4 # make room on stack for the evaluated number
+sw $t1, ($sp) # store the evaluated number on top of the stack
+jal printNumber # print the number
+j readInput # jump back to reading user's input
+
+pop:
+move $t2, $t1 # move the number into $t2 
+lw $t1, ($sp) # load number from top of stack into $t1
+jal evaluate # do the operation on op1 in $t1 and op2 in $t2
+
+subi $sp, $sp, 4 # make room on stack for the evaluated number
+sw $t1, ($sp) # store the evaluated number on top of the stack
+jal printNumber # print the number
+j readInput # jump back to reading user's input
+
+printNumber:
+lw $a0, ($sp)  # load the number on top of the stack into $a0
+li $v0, 1 # print the number
+syscall
+la $a0, newLine # load new line into $a0
+li $v0, 4 # print string
+syscall 
+jr $ra # return to the caller
+
+
+evaluate:
+beq $t3, 42, times
+beq $t3, 43, plus
+beq $t3, 45, minus
+beq $t3, 47, divide
+beq $t3, 37, mod
+times:
+mul $t1, $t1, $t2  # op1 * op2
+jr $ra # return to caller
+plus:
+add $t1, $t1, $t2  # op1 + op2
+jr $ra # return to caller
+minus:
+sub $t1, $t1, $t2  # op1 - op2
+jr $ra # return to caller
+divide:
+div $t1, $t1, $t2  # op1 / op2
+jr $ra # return to caller
+
+mod:
+div $t1, $t1, $t2 # op1 / op2
+mfhi $t1 # the remainder is stored in the HI register, (the quotient is stored in the LO register)
+jr $ra
+convertIntoInt:
+sub $sp, $sp, 4
+sw $s3, ($sp) # mark the beginning of current stack pointer so that we know when to stop later on
+lb $a1, ($a0) # load the byte value at $a0 into $t1
+while:
+beq $a1, 32, exit # if $t1 becomes a space, then exit
+beq $a1, $s1, exit # exit if $t1 is a new line
+sub $a1, $a1, 48 # convert $t1 into a number
+sub $sp, $sp, 4 # make space on the stack
+sw $a1, ($sp) # store the number value in $t1 on top of stack
+addi $a0, $a0, 1 # increment to the next byte
+lb $a1, ($a0) # load the value at the current byte into $t1
+j while
+exit:
+li $t5, 1 # current decimal positional value
+li $t7, 0 # stores the sum
+loop:
+lw $t6, ($sp) # load the current number on top of the stack into $t6
+addi $sp, $sp, 4 # pop the stack
+beq $t6, -1, return # when we see the -1, we know that we've reached the beginning of the number
+mul $t6, $t6, $t5 # multiply the current number by the current decimal positional value
+add $t7, $t7, $t6 # add the decimal converted numbers together
+mul $t5, $t5, 10 # increment decimal positional value by a multiple of 10 each time
+j loop
+return: 
+jr $ra
+end:
+li $v0, 10
+syscall
+
